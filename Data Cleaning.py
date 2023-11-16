@@ -1,54 +1,37 @@
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 
-#Load your dataset
-data = pd.read_csv('Augmented_avocado.csv')
+# Load your dataset
+csv_file_path = 'Augmented_avocado.csv'  # Replace with your file path
+data = pd.read_csv(csv_file_path)
 
-# Step 1: Fill Null Values
-# Replace 'ColumnName' with the name of your column. Repeat or modify as needed.
-# Example: Filling numeric columns with their mean
-data['NumericColumn'] = data['NumericColumn'].fillna(data['NumericColumn'].mean())
-
-# For categorical columns, you might want to fill with the mode (most frequent value)
-data['CategoricalColumn'] = data['CategoricalColumn'].fillna(data['CategoricalColumn'].mode()[0])
-
-# Alternatively, forward fill or backward fill can be used
+# Fill any null values
 data = data.fillna(method='ffill')
-data = data.fillna(method='bfill')
 
-# Step 2: Drop Unnecessary Rows
-# Dropping rows where any column is null
-data = data.dropna()
-
-# Or, to drop rows only if specific columns have null values:
-data = data.dropna(subset=['ColumnName1', 'ColumnName2'])
-
-# Step 3: Remove Unnecessary Columns
-# Drop columns that are not relevant to your analysis
-data = data.drop(columns=['UnwantedColumn'])
-
-# Step 4: Check for Duplicates
-# Remove duplicate rows to ensure accuracy
+# Delete duplicates
 data = data.drop_duplicates()
 
-# Step 5: Data Type Conversion
-# Convert the 'Date' column to datetime type
+# Convert date to numeric
 data['Date'] = pd.to_datetime(data['Date'])
-# Convert other columns as needed
+data['Date'] = data['Date'].map(pd.Timestamp.timestamp)
 
-# Step 6: Handling Outliers
-# Identify and handle outliers in your data. This requires specific analysis.
-# Example: using IQR or Z-scores
+# Handling outliers using Tukey IQR method
+def find_outliers_tukey(x):
+    q1 = np.percentile(x, 25)
+    q3 = np.percentile(x, 75)
+    iqr = q3 - q1
+    floor = q1 - 1.5 * iqr
+    ceiling = q3 + 1.5 * iqr
+    outlier_indices = list(x.index[(x < floor) | (x > ceiling)])
+    outlier_values = list(x[outlier_indices])
+    return outlier_indices, outlier_values
 
-# Step 7: Normalization/Standardization (Example using Min-Max Scaling)
-# Normalize or standardize numerical features, especially for machine learning models
-scaler = MinMaxScaler()
-# Replace with actual numeric column names
-# data[['NumericColumn1', 'NumericColumn2']] = scaler.fit_transform(data[['NumericColumn1', 'NumericColumn2']])
+# Apply Tukey IQR method on numeric columns
+numeric_columns = ['AveragePrice', 'Total Volume', '4046', '4225', '4770', 'Total Bags', 'Small Bags', 'Large Bags', 'XLarge Bags']
+for col in numeric_columns:
+    indices, _ = find_outliers_tukey(data[col])
+    data = data.drop(index=indices)
 
-# Step 8: Categorical Data Encoding (Example using One-Hot Encoding)
-# Convert categorical columns to a numerical format for machine learning models
-# data = pd.get_dummies(data, columns=['CategoricalColumn'])
-
-# Save the cleaned data or continue with your analysis
-# data.to_csv('path_to_save_cleaned_file.csv', index=False)
+# Save the cleaned data
+cleaned_data_path = 'path_to_save_cleaned_avocado_dataset.csv'  # Replace with your desired file path
+data.to_csv(cleaned_data_path, index=False)
